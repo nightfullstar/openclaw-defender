@@ -44,11 +44,12 @@ Already installed if you're reading this! This skill comes pre-configured.
 
 ### Setup (5 Minutes)
 
-**1. Review baseline hashes:**
+**1. Establish baseline (first-time only):**
 ```bash
-cat ~/.openclaw/workspace/.integrity/*.sha256
+cd ~/.openclaw/workspace
+./skills/openclaw-defender/scripts/generate-baseline.sh
 ```
-Confirm these are legitimate current versions of your files.
+Then review: `cat .integrity/*.sha256` — confirm these are legitimate current versions.
 
 **2. Enable automated monitoring:**
 ```bash
@@ -133,24 +134,13 @@ cat ~/.openclaw/workspace/memory/security-incidents.md
 
 ### Known Malicious Actors (Blocklist)
 
-**Never install skills from:**
-- zaycv (40+ automated malware skills)
-- Aslaep123 (typosquatted trading bots)
-- moonshine-100rze (Moltbook malware)
-- pepe276 (Unicode contraband + DAN jailbreaks)
-- aztr0nutzs (NET_NiNjA malware staging)
+**Single source of truth:** `references/blocklist.conf` (used by `audit-skills.sh`). Keep this list in sync when adding entries.
 
-**Never install these skills:**
-- clawhud, clawhub1
-- polymarket-traiding-bot (note: typo is intentional by attacker)
-- base-agent, bybit-agent
-- moltbook-lm8, moltbookagent
-- publish-dist
+**Never install skills from (authors):** zaycv, Aslaep123, moonshine-100rze, pepe276, aztr0nutzs, Ddoy233.
 
-**Blocked infrastructure:**
-- IP: 91.92.242.30 (known C2 server)
-- Password-protected file hosting
-- Recently registered domains (<90 days)
+**Never install these skills:** clawhub, clawhub1, clawdhub1, clawhud, polymarket-traiding-bot, base-agent, bybit-agent, moltbook-lm8, moltbookagent, publish-dist.
+
+**Blocked infrastructure:** 91.92.242.30 (known C2), password-protected file hosting, recently registered domains (<90 days).
 
 ## How It Works
 
@@ -235,11 +225,13 @@ openclaw-defender/
 ├── scripts/
 │   ├── audit-skills.sh (manual skill review)
 │   ├── check-integrity.sh (file monitoring) → moved to workspace/bin/
+│   ├── generate-baseline.sh (one-time baseline for .integrity/)
 │   └── quarantine-skill.sh (isolate suspicious skill)
 ├── references/
-│   ├── toxicskills-research.md (Snyk findings)
-│   ├── threat-patterns.md (attack vectors)
-│   └── incident-response.md (playbook)
+│   ├── blocklist.conf (single source: authors, skills, infrastructure)
+│   ├── toxicskills-research.md (Snyk + OWASP + threat intel)
+│   ├── threat-patterns.md (canonical detection patterns)
+│   └── incident-response.md (incident playbook)
 └── README.md (user guide)
 ```
 
@@ -290,9 +282,10 @@ openclaw-defender/
 Found a new attack pattern? Discovered malicious skill?
 
 **Report to:**
-1. OpenClaw security channel (Discord)
-2. ClawHub maintainers (if applicable)
-3. Snyk research team (responsible disclosure)
+1. **ClawHub:** Signed-in users can flag skills; skills with **3+ unique reports are auto-hidden** ([docs.openclaw.ai/tools/clawhub#security-and-moderation](https://docs.openclaw.ai/tools/clawhub#security-and-moderation)).
+2. OpenClaw security channel (Discord)
+3. ClawHub maintainers (if applicable)
+4. Snyk research team (responsible disclosure)
 
 **Do NOT:**
 - Publish exploits publicly without disclosure

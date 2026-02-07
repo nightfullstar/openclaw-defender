@@ -9,7 +9,7 @@ if [ -z "$SKILL_NAME" ]; then
   exit 1
 fi
 
-WORKSPACE="$HOME/.openclaw/workspace"
+WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 SKILL_PATH="$WORKSPACE/skills/$SKILL_NAME"
 QUARANTINE_PATH="$WORKSPACE/skills/$SKILL_NAME.QUARANTINE"
 

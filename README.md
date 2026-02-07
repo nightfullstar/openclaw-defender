@@ -20,6 +20,15 @@
 
 ## Quick Start
 
+### 0. Establish baseline (first-time only)
+After your workspace is in a known-good state:
+```bash
+cd ~/.openclaw/workspace
+./skills/openclaw-defender/scripts/generate-baseline.sh
+```
+This creates `.integrity/*.sha256` for SOUL.md, MEMORY.md, all SKILL.md files, etc.  
+**Multi-agent / custom path:** set `OPENCLAW_WORKSPACE` to your workspace root; `check-integrity.sh`, `generate-baseline.sh`, and `quarantine-skill.sh` all respect it.
+
 ### 1. Enable Monitoring (1 minute)
 ```bash
 crontab -e
@@ -102,9 +111,13 @@ openclaw-defender/
 ├── scripts/
 │   ├── audit-skills.sh        # Pre-install security audit
 │   ├── check-integrity.sh     # File integrity monitoring
+│   ├── generate-baseline.sh   # One-time baseline for .integrity/
 │   └── quarantine-skill.sh    # Isolate suspicious skills
 └── references/
-    └── toxicskills-research.md   # Snyk findings + threat intel
+    ├── blocklist.conf           # Single source: authors, skills, infrastructure
+    ├── toxicskills-research.md  # Snyk + OWASP + threat intel
+    ├── threat-patterns.md       # Canonical detection patterns
+    └── incident-response.md     # Playbook when compromise suspected
 ```
 
 ## Security Policy
@@ -226,22 +239,16 @@ cat memory/security-incidents.md
 ## Research Sources
 
 ### Primary Research
-- **Snyk ToxicSkills Report** (Feb 4, 2026)
-  - First comprehensive audit of AI agent skills
-  - 3,984 ClawHub skills analyzed
-  - 534 CRITICAL vulnerabilities found
-  - mcp-scan detection framework
+- **Snyk – ClawHub malicious campaign** (Feb 2–4, 2026)  
+  [snyk.io/articles/clawdhub-malicious-campaign-ai-agent-skills](https://snyk.io/articles/clawdhub-malicious-campaign-ai-agent-skills)  
+  clawhub/clawdhub1 (zaycv), 91.92.242.30, glot.io, password-protected zip.
+- **Koi Security – ClawHavoc** (Feb 2, 2026)  
+  [thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html](https://thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html)  
+  2,857 skills audited, 341 malicious; 335 Atomic Stealer (AMOS) via fake prerequisites.
 
 ### Threat Intelligence
-- **OWASP LLM Top 10 (2025)**
-  - LLM01:2025 Prompt Injection
-  - Indirect injection via RAG
-  - Tool poisoning attacks
-
-- **Real-World Exploits (Q4 2025)**
-  - EchoLeak (Microsoft 365 Copilot)
-  - GeminiJack (Google Gemini Enterprise)
-  - PromptPwnd (CI/CD supply chain)
+- **OWASP LLM Top 10 (2025)** – LLM01 Prompt Injection, RAG, tool poisoning.
+- **Real-World Exploits (Q4 2025)** – EchoLeak (M365 Copilot), GeminiJack (Gemini Enterprise), PromptPwnd (CI/CD).
 
 ## Contributing
 

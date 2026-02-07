@@ -24,6 +24,23 @@ TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
 echo "=== File Integrity Check: $TIMESTAMP ==="
 
+# Verify integrity-of-integrity: .integrity/ must match stored manifest
+if [ -f ".integrity-manifest.sha256" ]; then
+  CURRENT_MANIFEST=$(find .integrity -type f -name '*.sha256' 2>/dev/null | sort | xargs cat 2>/dev/null | sha256sum | cut -d' ' -f1)
+  STORED_MANIFEST=$(cat .integrity-manifest.sha256 2>/dev/null | tr -d '[:space:]')
+  if [ -n "$STORED_MANIFEST" ] && [ "$CURRENT_MANIFEST" != "$STORED_MANIFEST" ]; then
+    echo "🚨 VIOLATION: Integrity baselines tampered (.integrity/ does not match manifest)!"
+    VIOLATIONS=$((VIOLATIONS + 1))
+    echo "## Integrity baseline tampering" >> memory/security-incidents.md
+    echo "**Date:** $TIMESTAMP" >> memory/security-incidents.md
+    echo "**Action:** Re-run generate-baseline.sh from a known-good state; investigate who changed .integrity/" >> memory/security-incidents.md
+    echo "" >> memory/security-incidents.md
+  fi
+elif [ -d ".integrity" ] && [ -n "$(find .integrity -type f -name '*.sha256' 2>/dev/null)" ]; then
+  echo "⚠️  WARNING: No .integrity-manifest.sha256 (run generate-baseline.sh to create it)"
+  VIOLATIONS=$((VIOLATIONS + 1))
+fi
+
 # Check core files
 for file in "${CRITICAL_FILES[@]}"; do
   if [ -f "$file" ]; then

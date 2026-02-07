@@ -8,10 +8,11 @@ DEFENDER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BLOCKLIST_FILE="$DEFENDER_ROOT/references/blocklist.conf"
 
 # Load blocklist from file or fallback to built-in
+# Strips inline # comments and trims whitespace so entries match correctly
 get_blocklist_section() {
   local section="$1"
   if [ -f "$BLOCKLIST_FILE" ]; then
-    sed -n "/^\[$section\]/,/^\[/p" "$BLOCKLIST_FILE" | grep -v '^\[' | grep -v '^#' | grep -v '^$' | tr '\n' '|' | sed 's/|$//'
+    sed -n "/^\[$section\]/,/^\[/p" "$BLOCKLIST_FILE" | grep -v '^\[' | grep -v '^$' | sed 's/#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' | tr '\n' '|' | sed 's/|$//'
   fi
 }
 BLOCKLIST_SKILLS_RAW="$(get_blocklist_section skills)"

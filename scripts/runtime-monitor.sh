@@ -140,7 +140,7 @@ monitor_file_access() {
     fi
   done
   
-  # Block writes to critical files (including defender config so skills can't poison whitelists)
+  # Block writes to critical files (including defender config and integrity baselines)
   if [ "$operation" = "write" ] || [ "$operation" = "delete" ]; then
     local critical_files=(
       "SOUL.md"
@@ -151,6 +151,8 @@ monitor_file_access() {
       ".defender-network-whitelist"
       ".defender-safe-commands"
       ".defender-rag-allowlist"
+      ".integrity"
+      ".integrity-manifest.sha256"
     )
     
     for critical in "${critical_files[@]}"; do

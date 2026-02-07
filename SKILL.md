@@ -121,6 +121,9 @@ cat ~/.openclaw/workspace/memory/security-incidents.md
 
 # Check kill switch status
 ~/.openclaw/workspace/skills/openclaw-defender/scripts/runtime-monitor.sh kill-switch check
+
+# Update blocklist from official repo (https://github.com/nightfullstar/openclaw-defender; backups current, fetches latest)
+~/.openclaw/workspace/skills/openclaw-defender/scripts/update-lists.sh
 ```
 
 ### Runtime Monitoring (Integrated)
@@ -222,12 +225,14 @@ These config files are **protected**: file integrity monitoring tracks them (if 
 
 **Detection method:**
 - SHA256 baseline hashes stored in `.integrity/`
+- **Integrity-of-integrity:** A manifest (`.integrity-manifest.sha256`) is a hash of all baseline files; `check-integrity.sh` verifies it first so tampering with `.integrity/` is detected.
+- Runtime monitor blocks write/delete to `.integrity/` and `.integrity-manifest.sha256`, so skills cannot corrupt baselines.
 - Cron job checks every 10 minutes
 - Violations logged to `memory/security-incidents.md`
 - Automatic alerting on changes
 
 **Why this matters:**
-Malicious skills can poison your memory files, causing persistent compromise that survives restarts. Integrity monitoring catches this immediately.
+Malicious skills can poison your memory files, or corrupt/overwrite baseline hashes to hide tampering. The manifest + runtime block protect the baselines; integrity monitoring catches changes to protected files.
 
 ### Threat Pattern Detection
 
@@ -292,8 +297,9 @@ openclaw-defender/
 │   ├── check-integrity.sh (file integrity monitoring)
 │   ├── generate-baseline.sh (one-time baseline setup)
 │   ├── quarantine-skill.sh (isolate compromised skills)
-│   ├── runtime-monitor.sh (NEW: real-time execution monitoring)
-│   └── analyze-security.sh (NEW: security event analysis & reporting)
+│   ├── runtime-monitor.sh (real-time execution monitoring)
+│   ├── analyze-security.sh (security event analysis & reporting)
+│   └── update-lists.sh (fetch blocklist/allowlist from official repo)
 ├── references/
 │   ├── blocklist.conf (single source: authors, skills, infrastructure)
 │   ├── toxicskills-research.md (Snyk + OWASP + real-world exploits)

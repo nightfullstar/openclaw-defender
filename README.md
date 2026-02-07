@@ -2,6 +2,8 @@
 
 > **Comprehensive security framework protecting OpenClaw agents from skill supply chain attacks discovered in Snyk's ToxicSkills research (Feb 2026).**
 
+**Repository:** [https://github.com/nightfullstar/openclaw-defender](https://github.com/nightfullstar/openclaw-defender) — blocklist and allowlist updates are fetched from here by `update-lists.sh` by default.
+
 ## The Problem
 
 - **534 malicious skills** on ClawHub (13.4% of ecosystem)
@@ -141,8 +143,9 @@ openclaw-defender/
 │   ├── check-integrity.sh     # File integrity monitoring (cron)
 │   ├── generate-baseline.sh   # One-time baseline setup
 │   ├── quarantine-skill.sh    # Isolate suspicious skills
-│   ├── runtime-monitor.sh     # NEW: Real-time execution monitoring
-│   └── analyze-security.sh    # NEW: Security event analysis & reporting
+│   ├── runtime-monitor.sh     # Real-time execution monitoring
+│   ├── analyze-security.sh    # Security event analysis & reporting
+│   └── update-lists.sh        # Fetch blocklist/allowlist from official repo
 └── references/
     ├── blocklist.conf           # Single source: authors, skills, infrastructure
     ├── toxicskills-research.md  # Snyk + OWASP + real-world exploits
@@ -179,6 +182,30 @@ Optional config files in the workspace root let you extend lists without editing
 Create only the files you need; missing files leave built-in behavior unchanged.
 
 These config files are **protected**: integrity monitoring tracks them (if they exist), and the runtime monitor blocks write/delete by skills. Only you should change them; run `generate-baseline.sh` after editing so the new hashes are the baseline.
+
+### Protecting the baselines (`.integrity/`)
+
+Baseline hashes are protected in two ways so skills cannot corrupt them:
+
+1. **Integrity-of-integrity:** `generate-baseline.sh` creates `.integrity-manifest.sha256` (a hash of all baseline files). `check-integrity.sh` verifies this first; if `.integrity/` has been tampered with, the manifest check fails and a violation is logged.
+2. **Runtime:** The runtime monitor blocks write/delete to any path containing `.integrity` or `.integrity-manifest.sha256`, so skills cannot modify or delete baselines.
+
+Only you (by running `generate-baseline.sh`) can update baselines.
+
+### Updating blocklist and allowlists from the official repo
+
+```bash
+# Fetch latest blocklist.conf from the repo (backs up current first)
+~/.openclaw/workspace/skills/openclaw-defender/scripts/update-lists.sh
+```
+
+By default the script uses the repo’s git remote (if you’re in a clone) or **https://github.com/nightfullstar/openclaw-defender** (main branch). Override with:
+
+```bash
+OPENCLAW_DEFENDER_LISTS_URL=https://raw.githubusercontent.com/other-fork/openclaw-defender/main ./scripts/update-lists.sh
+```
+
+Backups are stored under `references/.backup/`. If the repo provides `references/network-whitelist.example`, `references/safe-commands.example`, or `references/rag-allowlist.example`, the script will mention them; you can copy those to your workspace root as `.defender-*` if you want to use them.
 
 ## Security Policy
 

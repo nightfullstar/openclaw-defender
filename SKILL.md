@@ -19,22 +19,46 @@ Protects your OpenClaw agent from the threats discovered in Snyk's ToxicSkills r
 - Monitors all SKILL.md files for tampering
 
 ### 2. Skill Security Auditing
-- Manual security review process
-- Threat pattern detection (base64, jailbreaks, obfuscation)
+- Pre-installation security review
+- Threat pattern detection (base64, jailbreaks, obfuscation, glot.io)
 - Credential theft pattern scanning
-- Author reputation verification
+- Author reputation verification (GitHub age check)
+- Blocklist enforcement (authors, skills, infrastructure)
 
-### 3. Security Policy Enforcement
+### 3. Runtime Protection (NEW)
+- Network request monitoring and blocking
+- File access control (block credentials, critical files)
+- Command execution validation (whitelist safe commands)
+- RAG operation prohibition (EchoLeak/GeminiJack defense)
+- Output sanitization (redact keys, emails, base64 blobs)
+- Resource limits (prevent fork bombs, exhaustion)
+
+### 4. Kill Switch (NEW)
+- Emergency shutdown on attack detection
+- Automatic activation on critical threats
+- Blocks all operations until manual review
+- Incident logging with full context
+
+### 5. Security Policy Enforcement
 - Zero-trust skill installation policy
-- Blocklist of known malicious actors
+- Blocklist of known malicious actors (centralized in blocklist.conf)
 - Whitelist-only approach for external skills
 - Mandatory human approval workflow
 
-### 4. Incident Response
-- Automated security logging
+### 6. Incident Response & Analytics
+- Structured security logging (JSON Lines format)
+- Automated pattern detection and alerting
 - Skill quarantine procedures
 - Compromise detection and rollback
+- Daily/weekly security reports
 - Forensic analysis support
+
+### 7. Collusion Detection (NEW)
+- Multi-skill coordination monitoring
+- Concurrent execution tracking
+- Cross-skill file modification analysis
+- Sybil network detection
+- **Note:** Collusion detection only works when the execution path calls `runtime-monitor.sh start` and `end` for each skill; otherwise event counts are empty.
 
 ## Quick Start
 
@@ -44,11 +68,12 @@ Already installed if you're reading this! This skill comes pre-configured.
 
 ### Setup (5 Minutes)
 
-**1. Review baseline hashes:**
+**1. Establish baseline (first-time only):**
 ```bash
-cat ~/.openclaw/workspace/.integrity/*.sha256
+cd ~/.openclaw/workspace
+./skills/openclaw-defender/scripts/generate-baseline.sh
 ```
-Confirm these are legitimate current versions of your files.
+Then review: `cat .integrity/*.sha256` — confirm these are legitimate current versions.
 
 **2. Enable automated monitoring:**
 ```bash
@@ -80,24 +105,64 @@ cat ~/.openclaw/workspace/memory/security-incidents.md
 
 ## Usage
 
-### Check System Security Status
+### Pre-Installation: Audit a New Skill
+```bash
+# Before installing any external skill
+~/.openclaw/workspace/skills/openclaw-defender/scripts/audit-skills.sh /path/to/skill
+```
+
+### Daily Operations: Check Security Status
+```bash
+# Manual integrity check
+~/.openclaw/workspace/bin/check-integrity.sh
+
+# Analyze security events
+~/.openclaw/workspace/skills/openclaw-defender/scripts/analyze-security.sh
+
+# Check kill switch status
+~/.openclaw/workspace/skills/openclaw-defender/scripts/runtime-monitor.sh kill-switch check
+```
+
+### Runtime Monitoring (Integrated)
+```bash
+# OpenClaw calls these automatically during skill execution:
+runtime-monitor.sh start SKILL_NAME
+runtime-monitor.sh check-network "https://example.com" SKILL_NAME
+runtime-monitor.sh check-file "/path/to/file" read SKILL_NAME
+runtime-monitor.sh check-command "ls -la" SKILL_NAME
+runtime-monitor.sh check-rag "embedding_operation" SKILL_NAME
+runtime-monitor.sh end SKILL_NAME 0
+```
+
+**Runtime integration:** Protection only applies when the gateway (or your setup) actually calls `runtime-monitor.sh` at skill start/end and before network/file/command/RAG operations. If your OpenClaw version does not hook these yet, the runtime layer is dormant; you can still use the kill switch and `analyze-security.sh` on manually logged events.
+
+**Runtime configuration (optional):** In the workspace root you can add:
+- `.defender-network-whitelist` — one domain per line (added to built-in network whitelist).
+- `.defender-safe-commands` — one command prefix per line (added to built-in safe-command list).
+- `.defender-rag-allowlist` — one operation name or substring per line (operations matching a line are not blocked; for legitimate tools that use RAG-like names).
+
+These config files are **protected**: file integrity monitoring tracks them (if they exist), and the runtime monitor blocks write/delete by skills. Only you (or a human) should change them; update the integrity baseline after edits.
+
+### Emergency Response
+```bash
+# Activate kill switch manually
+~/.openclaw/workspace/skills/openclaw-defender/scripts/runtime-monitor.sh kill-switch activate "Manual investigation"
+
+# Quarantine suspicious skill
+~/.openclaw/workspace/skills/openclaw-defender/scripts/quarantine-skill.sh SKILL_NAME
+
+# Disable kill switch after investigation
+~/.openclaw/workspace/skills/openclaw-defender/scripts/runtime-monitor.sh kill-switch disable
+```
+
+### Via Agent Commands
 ```
 "Run openclaw-defender security check"
-```
-
-### Audit a New Skill (Before Installation)
-```
 "Use openclaw-defender to audit this skill: [skill-name or URL]"
-```
-
-### Investigate Security Alert
-```
 "openclaw-defender detected a file change, investigate"
-```
-
-### Quarantine Suspicious Skill
-```
 "Quarantine skill [name] using openclaw-defender"
+"Show today's security report"
+"Check if kill switch is active"
 ```
 
 ## Security Policy
@@ -133,24 +198,13 @@ cat ~/.openclaw/workspace/memory/security-incidents.md
 
 ### Known Malicious Actors (Blocklist)
 
-**Never install skills from:**
-- zaycv (40+ automated malware skills)
-- Aslaep123 (typosquatted trading bots)
-- moonshine-100rze (Moltbook malware)
-- pepe276 (Unicode contraband + DAN jailbreaks)
-- aztr0nutzs (NET_NiNjA malware staging)
+**Single source of truth:** `references/blocklist.conf` (used by `audit-skills.sh`). Keep this list in sync when adding entries.
 
-**Never install these skills:**
-- clawhud, clawhub1
-- polymarket-traiding-bot (note: typo is intentional by attacker)
-- base-agent, bybit-agent
-- moltbook-lm8, moltbookagent
-- publish-dist
+**Never install skills from (authors):** zaycv, Aslaep123, moonshine-100rze, pepe276, aztr0nutzs, Ddoy233.
 
-**Blocked infrastructure:**
-- IP: 91.92.242.30 (known C2 server)
-- Password-protected file hosting
-- Recently registered domains (<90 days)
+**Never install these skills:** clawhub, clawhub1, clawdhub1, clawhud, polymarket-traiding-bot, base-agent, bybit-agent, moltbook-lm8, moltbookagent, publish-dist.
+
+**Blocked infrastructure:** 91.92.242.30 (known C2), password-protected file hosting, recently registered domains (<90 days).
 
 ## How It Works
 
@@ -164,6 +218,7 @@ cat ~/.openclaw/workspace/memory/security-incidents.md
 - .agent-private-key-SECURE (ERC-8004 wallet)
 - AGENTS.md (operational guidelines)
 - All skills/*/SKILL.md (skill instructions)
+- .defender-network-whitelist, .defender-safe-commands, .defender-rag-allowlist (if present; prevents skill tampering)
 
 **Detection method:**
 - SHA256 baseline hashes stored in `.integrity/`
@@ -233,14 +288,30 @@ Malicious skills can poison your memory files, causing persistent compromise tha
 openclaw-defender/
 ├── SKILL.md (this file)
 ├── scripts/
-│   ├── audit-skills.sh (manual skill review)
-│   ├── check-integrity.sh (file monitoring) → moved to workspace/bin/
-│   └── quarantine-skill.sh (isolate suspicious skill)
+│   ├── audit-skills.sh (pre-install skill audit w/ blocklist)
+│   ├── check-integrity.sh (file integrity monitoring)
+│   ├── generate-baseline.sh (one-time baseline setup)
+│   ├── quarantine-skill.sh (isolate compromised skills)
+│   ├── runtime-monitor.sh (NEW: real-time execution monitoring)
+│   └── analyze-security.sh (NEW: security event analysis & reporting)
 ├── references/
-│   ├── toxicskills-research.md (Snyk findings)
-│   ├── threat-patterns.md (attack vectors)
-│   └── incident-response.md (playbook)
+│   ├── blocklist.conf (single source: authors, skills, infrastructure)
+│   ├── toxicskills-research.md (Snyk + OWASP + real-world exploits)
+│   ├── threat-patterns.md (canonical detection patterns)
+│   └── incident-response.md (incident playbook)
 └── README.md (user guide)
+```
+
+**Logs & Data:**
+```
+~/.openclaw/workspace/
+├── .integrity/                  # SHA256 baselines
+├── logs/
+│   ├── integrity.log            # File monitoring (cron)
+│   └── runtime-security.jsonl   # Runtime events (structured)
+└── memory/
+    ├── security-incidents.md    # Human-readable incidents
+    └── security-report-*.md     # Daily analysis reports
 ```
 
 ## Integration with Existing Security
@@ -253,10 +324,13 @@ openclaw-defender/
 - Output sanitization
 
 **Defense in depth:**
-1. **Layer 1:** Skill installation vetting (openclaw-defender)
-2. **Layer 2:** Runtime monitoring (openclaw-defender)
-3. **Layer 3:** A2A endpoint security (future)
-4. **Layer 4:** Output sanitization (existing)
+1. **Layer 1:** Pre-installation vetting (audit-skills.sh, blocklist.conf)
+2. **Layer 2:** File integrity monitoring (check-integrity.sh, SHA256 baselines)
+3. **Layer 3:** Runtime protection (runtime-monitor.sh: network/file/command/RAG)
+4. **Layer 4:** Output sanitization (credential redaction, size limits)
+5. **Layer 5:** Emergency response (kill switch, quarantine, incident logging)
+6. **Layer 6:** Pattern detection (analyze-security.sh, collusion detection)
+7. **Layer 7:** A2A endpoint security (future, when deployed)
 
 **All layers required. One breach = total compromise.**
 
@@ -290,9 +364,10 @@ openclaw-defender/
 Found a new attack pattern? Discovered malicious skill?
 
 **Report to:**
-1. OpenClaw security channel (Discord)
-2. ClawHub maintainers (if applicable)
-3. Snyk research team (responsible disclosure)
+1. **ClawHub:** Signed-in users can flag skills; skills with **3+ unique reports are auto-hidden** ([docs.openclaw.ai/tools/clawhub#security-and-moderation](https://docs.openclaw.ai/tools/clawhub#security-and-moderation)).
+2. OpenClaw security channel (Discord)
+3. ClawHub maintainers (if applicable)
+4. Snyk research team (responsible disclosure)
 
 **Do NOT:**
 - Publish exploits publicly without disclosure
@@ -321,8 +396,9 @@ A: No tool catches everything. We detect KNOWN patterns. Defense in depth + huma
 
 ## Status
 
-**Current Version:** 1.0.0  
+**Current Version:** 1.1.0  
 **Created:** 2026-02-07  
+**Last Updated:** 2026-02-07 (added runtime protection, kill switch, analytics)  
 **Last Audit:** 2026-02-07  
 **Next Audit:** 2026-03-03 (First Monday)
 

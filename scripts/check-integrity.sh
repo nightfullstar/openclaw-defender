@@ -1,8 +1,9 @@
 #!/bin/bash
 # File Integrity Monitoring for OpenClaw Workspace
 # Checks critical files for unauthorized modifications
+# Set OPENCLAW_WORKSPACE to override default (e.g. for multi-agent).
 
-WORKSPACE="$HOME/.openclaw/workspace"
+WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 cd "$WORKSPACE" || exit 1
 
 CRITICAL_FILES=(
@@ -13,6 +14,9 @@ CRITICAL_FILES=(
   ".agent-private-key-SECURE"
   "AGENTS.md"
   "HEARTBEAT.md"
+  ".defender-network-whitelist"
+  ".defender-safe-commands"
+  ".defender-rag-allowlist"
 )
 
 VIOLATIONS=0

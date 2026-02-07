@@ -58,6 +58,7 @@ Protects your OpenClaw agent from the threats discovered in Snyk's ToxicSkills r
 - Concurrent execution tracking
 - Cross-skill file modification analysis
 - Sybil network detection
+- **Note:** Collusion detection only works when the execution path calls `runtime-monitor.sh start` and `end` for each skill; otherwise event counts are empty.
 
 ## Quick Start
 
@@ -132,6 +133,15 @@ runtime-monitor.sh check-command "ls -la" SKILL_NAME
 runtime-monitor.sh check-rag "embedding_operation" SKILL_NAME
 runtime-monitor.sh end SKILL_NAME 0
 ```
+
+**Runtime integration:** Protection only applies when the gateway (or your setup) actually calls `runtime-monitor.sh` at skill start/end and before network/file/command/RAG operations. If your OpenClaw version does not hook these yet, the runtime layer is dormant; you can still use the kill switch and `analyze-security.sh` on manually logged events.
+
+**Runtime configuration (optional):** In the workspace root you can add:
+- `.defender-network-whitelist` — one domain per line (added to built-in network whitelist).
+- `.defender-safe-commands` — one command prefix per line (added to built-in safe-command list).
+- `.defender-rag-allowlist` — one operation name or substring per line (operations matching a line are not blocked; for legitimate tools that use RAG-like names).
+
+These config files are **protected**: file integrity monitoring tracks them (if they exist), and the runtime monitor blocks write/delete by skills. Only you (or a human) should change them; update the integrity baseline after edits.
 
 ### Emergency Response
 ```bash
@@ -208,6 +218,7 @@ runtime-monitor.sh end SKILL_NAME 0
 - .agent-private-key-SECURE (ERC-8004 wallet)
 - AGENTS.md (operational guidelines)
 - All skills/*/SKILL.md (skill instructions)
+- .defender-network-whitelist, .defender-safe-commands, .defender-rag-allowlist (if present; prevents skill tampering)
 
 **Detection method:**
 - SHA256 baseline hashes stored in `.integrity/`

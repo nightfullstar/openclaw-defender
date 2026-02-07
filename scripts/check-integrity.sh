@@ -14,6 +14,9 @@ CRITICAL_FILES=(
   ".agent-private-key-SECURE"
   "AGENTS.md"
   "HEARTBEAT.md"
+  ".defender-network-whitelist"
+  ".defender-safe-commands"
+  ".defender-rag-allowlist"
 )
 
 VIOLATIONS=0

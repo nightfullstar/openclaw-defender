@@ -162,6 +162,24 @@ openclaw-defender/
     └── security-report-*.md     # Daily analysis reports
 ```
 
+### Runtime integration
+
+Runtime protection (network/file/command/RAG blocking, collusion detection) **only applies when the gateway actually calls** `runtime-monitor.sh` at skill start/end and before each operation. If your OpenClaw version does not hook these yet, the runtime layer is dormant; you can still use the kill switch and `analyze-security.sh` on manually logged events.
+
+### Runtime configuration (optional)
+
+Optional config files in the workspace root let you extend lists without editing the skill:
+
+| File | Purpose |
+|------|---------|
+| `.defender-network-whitelist` | One domain per line (no `#` in domain). Added to built-in network whitelist so those URLs are not warned. |
+| `.defender-safe-commands` | One command prefix per line. Added to built-in safe-command list so those commands log as DEBUG instead of WARN. |
+| `.defender-rag-allowlist` | One operation name or pattern per line. If the RAG operation string matches a line, it is **not** blocked (for legitimate tools that use RAG-like names). |
+
+Create only the files you need; missing files leave built-in behavior unchanged.
+
+These config files are **protected**: integrity monitoring tracks them (if they exist), and the runtime monitor blocks write/delete by skills. Only you should change them; run `generate-baseline.sh` after editing so the new hashes are the baseline.
+
 ## Security Policy
 
 ### Installation Rules
@@ -297,9 +315,6 @@ tail -50 ~/.openclaw/workspace/logs/runtime-security.jsonl | jq
 # After remediation
 ./scripts/runtime-monitor.sh kill-switch disable
 ```
-   # Rotate credentials
-   # (assume compromise)
-   ```
 
 ## Monthly Security Audit
 

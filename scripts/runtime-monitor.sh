@@ -1,9 +1,17 @@
 #!/bin/bash
 # Runtime Security Monitor for OpenClaw Skills
 # Part of openclaw-defender - monitors skill execution in real-time
+#
+# Integration: Runtime protection only applies when the gateway (or your setup)
+# calls this script at skill start/end and before network/file/command/RAG ops.
+# If OpenClaw does not hook these yet, the runtime layer is dormant; you can
+# still use kill-switch and analyze-security on manually logged events.
 
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 LOG_FILE="${OPENCLAW_LOGS:-$WORKSPACE/logs}/runtime-security.jsonl"
+NW_WHITELIST_FILE="$WORKSPACE/.defender-network-whitelist"
+SAFE_COMMANDS_FILE="$WORKSPACE/.defender-safe-commands"
+RAG_ALLOWLIST_FILE="$WORKSPACE/.defender-rag-allowlist"
 KILL_SWITCH_FILE="$WORKSPACE/.kill-switch"
 
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -68,16 +76,23 @@ monitor_network() {
   local url="$1"
   local skill="$2"
   
-  # Whitelist: common legitimate domains
+  # Whitelist: built-in + optional workspace file
   local whitelist=(
-    "coinglass.com"
-    "alternative.me"
     "api.github.com"
     "npmjs.com"
     "pypi.org"
     "archive.org"
     "openclaw.ai"
+    "coinglass.com"
+    "alternative.me"
   )
+  if [ -f "$NW_WHITELIST_FILE" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%%#*}"
+      line="$(echo "$line" | tr -d '[:space:]')"
+      [ -n "$line" ] && whitelist+=("$line")
+    done < "$NW_WHITELIST_FILE"
+  fi
   
   # Check whitelist
   for domain in "${whitelist[@]}"; do
@@ -125,7 +140,7 @@ monitor_file_access() {
     fi
   done
   
-  # Block writes to critical files
+  # Block writes to critical files (including defender config so skills can't poison whitelists)
   if [ "$operation" = "write" ] || [ "$operation" = "delete" ]; then
     local critical_files=(
       "SOUL.md"
@@ -133,6 +148,9 @@ monitor_file_access() {
       "IDENTITY.md"
       "USER.md"
       "AGENTS.md"
+      ".defender-network-whitelist"
+      ".defender-safe-commands"
+      ".defender-rag-allowlist"
     )
     
     for critical in "${critical_files[@]}"; do
@@ -174,12 +192,19 @@ monitor_command() {
     fi
   done
   
-  # Whitelist: safe read-only commands
+  # Whitelist: built-in safe read-only commands + optional workspace file
   local safe_commands=(
     "ls" "cat" "grep" "find" "head" "tail"
     "echo" "date" "pwd" "whoami"
     "git status" "git log" "git diff"
   )
+  if [ -f "$SAFE_COMMANDS_FILE" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%%#*}"
+      line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      [ -n "$line" ] && safe_commands+=("$line")
+    done < "$SAFE_COMMANDS_FILE"
+  fi
   
   for safe in "${safe_commands[@]}"; do
     if echo "$command" | grep -q "^$safe"; then
@@ -218,10 +243,22 @@ sanitize_output() {
   echo "$output"
 }
 
-# Block RAG operations
+# Block RAG operations (unless operation matches allowlist)
 block_rag() {
   local operation="$1"
   local skill="$2"
+  
+  # Allowlist: if operation matches a line in .defender-rag-allowlist, do not block
+  if [ -f "$RAG_ALLOWLIST_FILE" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%%#*}"
+      line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      if [ -n "$line" ] && echo "$operation" | grep -qiF "$line"; then
+        log_event "INFO" "rag_allowed" "RAG allowlist match: $operation" "{\"skill\":\"$skill\",\"operation\":\"$operation\"}"
+        return 0
+      fi
+    done < "$RAG_ALLOWLIST_FILE"
+  fi
   
   local rag_patterns=(
     "embedding"
@@ -244,7 +281,8 @@ block_rag() {
   return 0
 }
 
-# Detect collusion (multi-skill coordination)
+# Detect collusion (multi-skill coordination).
+# Only meaningful when the execution path calls runtime-monitor.sh start/end for each skill.
 detect_collusion() {
   local skill="$1"
   
